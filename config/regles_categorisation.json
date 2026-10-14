@@ -1,0 +1,44 @@
+{
+  "etiquettes_imports": {
+    "pandas": "Transformation de données", "polars": "Transformation de données",
+    "numpy": "Calcul / Algorithmique", "scipy": "Calcul / Algorithmique", "math": "Calcul / Algorithmique",
+    "sklearn": "Modélisation / ML", "statsmodels": "Modélisation / ML", "xgboost": "Modélisation / ML",
+    "torch": "Modélisation / ML", "tensorflow": "Modélisation / ML",
+    "matplotlib": "Reporting / Visualisation", "seaborn": "Reporting / Visualisation", "plotly": "Reporting / Visualisation",
+    "requests": "Entrées-sorties / Intégration", "sqlite3": "Entrées-sorties / Intégration",
+    "sqlalchemy": "Entrées-sorties / Intégration", "openpyxl": "Entrées-sorties / Intégration",
+    "csv": "Entrées-sorties / Intégration",
+    "pytest": "Tests", "unittest": "Tests"
+  },
+
+  "etiquettes_appels": {
+    "Entrées-sorties / Intégration": ["open", "read_csv", "read_excel", "read_json", "read_sql", "to_csv", "to_excel", "to_sql", "connect", "urlopen"],
+    "Nettoyage de données": ["dropna", "fillna", "drop_duplicates", "isna", "isnull", "astype"],
+    "Transformation de données": ["groupby", "merge", "pivot_table", "agg", "concat", "melt", "join"],
+    "Modélisation / ML": ["fit", "predict", "train_test_split", "fit_transform"],
+    "Reporting / Visualisation": ["plot", "savefig", "bar", "hist", "scatter", "to_html"],
+    "Utilitaire": ["strip", "lstrip", "rstrip", "partition", "removeprefix", "lower", "upper", "startswith", "endswith"]
+  },
+
+  "seuil_operations_calcul": 5,
+  "categorie_technique_par_defaut": "Utilitaire",
+
+  "mots_cles_metier": {
+    "Finance": ["facture", "invoice", "budget", "comptab", "accounting", "tva", "vat", "bilan", "depense", "expense",
+                "tresorerie", "devise", "currency", "interet", "interest", "pret", "loan", "paiement", "payment",
+                "credit", "debit", "ledger", "amortissement"],
+    "Ressources humaines": ["salaire", "salary", "employe", "employee", "paie", "payroll", "conge", "recrutement",
+                            "hiring", "effectif", "headcount", "absence", "rh", "hr", "embauche"],
+    "Supply chain": ["stock", "inventaire", "inventory", "entrepot", "warehouse", "fournisseur", "supplier",
+                     "livraison", "delivery", "logistique", "logistic", "sku", "approvisionnement", "expedition", "shipping"],
+    "Ventes / Marketing": ["vente", "sales", "client", "customer", "campagne", "campaign", "produit", "product",
+                           "prix", "price", "remise", "discount", "panier", "magasin", "store", "crm", "lead"],
+    "Risque / Conformité": ["risque", "risk", "fraude", "fraud", "conformite", "compliance", "audit", "kyc", "aml",
+                            "sanction"],
+    "Pilotage / BI": ["kpi", "dashboard", "indicateur", "objectif", "trimestre", "quarter", "reporting", "performance"]
+  },
+  "categorie_metier_par_defaut": "Outil technique générique",
+  "longueur_min_prefixe": 4,
+
+  "seuils_complexite": {"complexe": 30, "modéré": 10}
+}

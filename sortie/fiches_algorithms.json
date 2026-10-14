@@ -1,0 +1,178 @@
+[
+  {
+    "fonction": "is_prime",
+    "risque": "Faible",
+    "filtre": "à convertir",
+    "signature": "bool is_prime(int64_t n)",
+    "raison": null,
+    "modele": "qwen3.6:35b-a3b",
+    "version_prompt": "conversion-v1",
+    "pieges": [
+      "ligne 5 : puissance ** : entiers -> pysupport::ipow ; x ** 0.5 est un flottant",
+      "ligne 6 : modulo % : signe du diviseur en Python, du dividende en C++ -> pysupport::floor_mod"
+    ],
+    "types": [
+      "n: int (MonkeyType)",
+      "retour: bool (MonkeyType)"
+    ],
+    "tentatives": 1,
+    "code": "bool is_prime(int64_t n) {\n    if (n <= 1) {\n        return false;\n    }\n    // Calculer la racine carrée. \n    // En Python: int(n**0.5) convertit le float en int (troncature).\n    // Pour n >= 2, sqrt(n) > 1. On veut l'intérieur de la boucle range(2, floor(sqrt(n)) + 1).\n    // C'est équivalent à i <= floor(sqrt(n)).\n    const double root = std::sqrt(static_cast<double>(n));\n    const int64_t limit = static_cast<int64_t>(root);\n    \n    for (int64_t i = 2; i <= limit; ++i) {\n        // Python: n % i == 0. \n        // Comme i > 0, le signe du résultat de % en C++ est celui de n.\n        // Si n > 0, n % i >= 0. Donc la sémantique est identique à Python pour n positif.\n        if (n % i == 0) {\n            return false;\n        }\n    }\n    return true;\n}\n",
+    "includes": [
+      "cstdint",
+      "cmath"
+    ],
+    "hypotheses": [
+      "je suppose que n tient dans un int64_t et que sa racine carrée tient dans un double sans perte de précision critique pour la comparaison d'égalité avec 0.",
+      "je suppose que les entrées négatives ou nulles sont gérées par le premier `if` (retour false), donc la boucle ne s'exécute que pour n >= 2.",
+      "j'utilise `std::sqrt` sur un double converti depuis int64_t, puis je tronque vers zéro avec `static_cast<int64_t>`, ce qui correspond à `int()` en Python (troncature vers zéro) appliqué au résultat de `n**0.5`. Note: pour les grands entiers parfaits carrés, la précision double peut parfois être limite, mais pour des int64_t standards, c'est généralement acceptable sauf cas très proches de limites de mantisse. Une alternative plus robuste serait `pysupport::isqrt` si disponible et strictement équivalent à `int(n**0.5)` pour les grands nombres, mais ici `std::sqrt` est standard. Pour être parfaitement conforme à \"n'invente pas\", je reste sur la conversion directe de la racine flottante comme le fait Python nativement.",
+      "j'utilise l'opérateur `%` de C++ directement car `i` est positif (>=2) et `n` est positif (>=2 dans la boucle), donc le signe du résultat est celui du dividende (`n`), ce qui correspond au comportement Python pour des diviseurs positifs."
+    ],
+    "erreurs": [],
+    "statut": "converti"
+  },
+  {
+    "fonction": "pgcd",
+    "risque": "Faible",
+    "filtre": "à convertir",
+    "signature": "int64_t pgcd(int64_t a, int64_t b)",
+    "raison": null,
+    "modele": "qwen3.6:35b-a3b",
+    "version_prompt": "conversion-v1",
+    "pieges": [
+      "ligne 13 : modulo % : signe du diviseur en Python, du dividende en C++ -> pysupport::floor_mod"
+    ],
+    "types": [
+      "a: int (MonkeyType)",
+      "b: int (MonkeyType)",
+      "retour: int (MonkeyType)"
+    ],
+    "tentatives": 1,
+    "code": "int64_t pgcd(int64_t a, int64_t b) {\n    while (b != 0) {\n        int64_t r = pysupport::floor_mod(a, b);\n        a = b;\n        b = r;\n    }\n    return a;\n}\n",
+    "includes": [
+      "cstdint"
+    ],
+    "hypotheses": [
+      "je suppose que les entrées `a` et `b` sont des entiers signés valides pour un `int64_t`.",
+      "je suppose que le résultat du PGCD tient dans un `int64_t` (ce qui est vrai si les entrées tiennent dans `int64_t`, car le PGCD ne peut pas dépasser la valeur absolue des entrées).",
+      "j'utilise `pysupport::floor_mod` pour garantir que le reste de la division a le même signe que le diviseur (`b`) comme en Python, assurant la convergence correcte de l'algorithme d'Euclide avec des nombres négatifs."
+    ],
+    "erreurs": [],
+    "statut": "converti"
+  },
+  {
+    "fonction": "factorial",
+    "risque": "Faible",
+    "filtre": "à convertir",
+    "signature": "int64_t factorial(int64_t n)",
+    "raison": null,
+    "modele": "qwen3.6:35b-a3b",
+    "version_prompt": "conversion-v1",
+    "pieges": [
+      "ligne 19 : exception Python -> exception C++ équivalente (ValueError -> std::invalid_argument)"
+    ],
+    "types": [
+      "n: int (MonkeyType)",
+      "retour: int (MonkeyType)"
+    ],
+    "tentatives": 1,
+    "code": "int64_t factorial(int64_t n) {\n    if (n < 0) {\n        throw std::invalid_argument(\"La factorielle n'est pas définie pour les nombres négatifs.\");\n    }\n    if (n == 0 || n == 1) {\n        return 1;\n    }\n    int64_t result = 1;\n    for (int64_t i = 2; i <= n; ++i) {\n        result *= i;\n    }\n    return result;\n}\n",
+    "includes": [
+      "cstdint",
+      "stdexcept"
+    ],
+    "hypotheses": [
+      "je suppose que le résultat de la factorielle tient dans un int64_t (sinon overflow silencieux ou besoin d'arithmétique big-int).",
+      "je suppose que l'entrée n est suffisamment petite pour que la boucle soit efficace en temps.",
+      "je respecte la sémantique Python où factorial(0) et factorial(1) valent 1.",
+      "j'utilise std::invalid_argument pour ValueError comme spécifié dans les conventions."
+    ],
+    "erreurs": [],
+    "statut": "converti"
+  },
+  {
+    "fonction": "fibonacci",
+    "risque": "Faible",
+    "filtre": "à convertir",
+    "signature": "int64_t fibonacci(int64_t n)",
+    "raison": null,
+    "modele": "qwen3.6:35b-a3b",
+    "version_prompt": "conversion-v1",
+    "pieges": [
+      "ligne 30 : exception Python -> exception C++ équivalente (ValueError -> std::invalid_argument)"
+    ],
+    "types": [
+      "n: int (MonkeyType)",
+      "retour: int (MonkeyType)"
+    ],
+    "tentatives": 1,
+    "code": "int64_t fibonacci(int64_t n) {\n    if (n < 0) {\n        throw std::invalid_argument(\"L'indice de Fibonacci doit être positif ou nul.\");\n    }\n    if (n == 0) {\n        return 0;\n    }\n    if (n == 1) {\n        return 1;\n    }\n    int64_t a = 0;\n    int64_t b = 1;\n    for (int64_t i = 2; i <= n; ++i) {\n        int64_t next_b = a + b;\n        a = b;\n        b = next_b;\n    }\n    return b;\n}\n",
+    "includes": [
+      "cstdint",
+      "stdexcept"
+    ],
+    "hypotheses": [
+      "je suppose que le résultat tient dans un int64_t (sinon overflow possible pour n >= 93)",
+      "je suppose que l'entrée n est cohérente avec la sémantique Python (entier non négatif)"
+    ],
+    "erreurs": [],
+    "statut": "converti"
+  },
+  {
+    "fonction": "is_palindrome",
+    "risque": "Faible",
+    "filtre": "à convertir",
+    "signature": "bool is_palindrome(const std::variant<int64_t, std::string>& s)",
+    "raison": null,
+    "modele": "qwen3.6:35b-a3b",
+    "version_prompt": "conversion-v1",
+    "pieges": [],
+    "types": [
+      "s: int | str (MonkeyType)",
+      "retour: bool (MonkeyType)"
+    ],
+    "tentatives": 2,
+    "code": "bool is_palindrome(const std::variant<int64_t, std::string>& s) {\n    // 1. Convertir l'entrée en string (str(s))\n    std::string s_str;\n    if (std::holds_alternative<int64_t>(s)) {\n        s_str = std::to_string(std::get<int64_t>(s));\n    } else {\n        s_str = std::get<std::string>(s);\n    }\n\n    // 2. lower()\n    std::string s_lower = pysupport::lower(s_str);\n\n    // 3. replace(\" \", \"\") -> supprime les espaces\n    std::string s_clean = pysupport::replace(s_lower, \" \", \"\");\n\n    // 4. Vérifier si c'est un palindrome : s_clean == s_clean[::-1]\n    std::string s_reversed = s_clean;\n    std::reverse(s_reversed.begin(), s_reversed.end());\n\n    return s_clean == s_reversed;\n}\n",
+    "includes": [
+      "cstdint",
+      "string",
+      "variant",
+      "algorithm"
+    ],
+    "hypotheses": [
+      "La fonction `pysupport::lower` convertit la chaîne en minuscules.",
+      "La fonction `pysupport::replace(str, old, new)` remplace toutes les occurrences de `old` par `new`.",
+      "`std::to_string` produit le format standard pour les entiers (pas de séparateurs de milliers).",
+      "La comparaison `==` sur `std::string` effectue une comparaison lexicographique stricte."
+    ],
+    "erreurs": [],
+    "statut": "converti"
+  },
+  {
+    "fonction": "main",
+    "risque": "Faible",
+    "filtre": "à convertir",
+    "signature": "void main_py()",
+    "raison": null,
+    "modele": "qwen3.6:35b-a3b",
+    "version_prompt": "conversion-v1",
+    "pieges": [],
+    "types": [
+      "retour: None (Pyright)"
+    ],
+    "tentatives": 1,
+    "code": "// Déclarations forward des fonctions dépendantes\nint64_t factorial(int64_t n);\nint64_t fibonacci(int64_t n);\nbool is_palindrome(const std::variant<int64_t, std::string>& s);\nbool is_prime(int64_t n);\nint64_t pgcd(int64_t a, int64_t b);\n\nvoid main_py() {\n    std::cout << \"--- Exécution des algorithmes ---\" << '\\n';\n    \n    // Helper lambda pour convertir bool en string \"True\"/\"False\" ou afficher directement\n    auto print_bool = [](bool val) {\n        std::cout << (val ? \"True\" : \"False\");\n    };\n\n    std::cout << \"Est-ce que 17 est premier ? \";\n    print_bool(is_prime(17));\n    std::cout << '\\n';\n\n    std::cout << \"Le PGCD de 48 et 18 est : \" << pgcd(48, 18) << '\\n';\n    \n    std::cout << \"La factorielle de 5 est : \" << factorial(5) << '\\n';\n    \n    std::cout << \"Le 7ème nombre de Fibonacci est : \" << fibonacci(7) << '\\n';\n\n    // is_palindrome attend un variant. On passe une string.\n    std::string s = \"Elu par cette crapule\";\n    std::cout << \"'Élu par cette crapule' est un palindrome ? \";\n    print_bool(is_palindrome(s));\n    std::cout << '\\n';\n}\n",
+    "includes": [
+      "iostream",
+      "string",
+      "variant",
+      "cstdint"
+    ],
+    "hypotheses": [
+      "je suppose que les fonctions `is_prime`, `pgcd`, `factorial`, `fibonacci` et `is_palindrome` sont déjà implémentées et disponibles dans la portée ou le namespace courant.",
+      "je suppose que `is_palindrome` gère correctement la casse et les espaces si nécessaire (la signature prend un variant string, donc on passe la string brute).",
+      "je suppose que l'affichage de `bool` doit suivre la convention Python (`True`/`False`) comme indiqué dans les conventions générales."
+    ],
+    "erreurs": [],
+    "statut": "converti"
+  }
+]

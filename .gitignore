@@ -1,0 +1,21 @@
+# Virtual environment
+env/
+venv/
+.venv/
+
+# Python caches
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# Local runtime artefacts
+monkeytype.sqlite3
+data/_pyright_*.py
+
+# Compiled binaries (rebuilt locally, platform-specific)
+*.exe
+*.pyd
+*.so
+
+# Case statement (not redistributed)
+Deloitte_Case Scenario EAI&D.pdf

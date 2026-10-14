@@ -1,0 +1,6 @@
+ollama==0.6.3
+pydantic==2.14.1
+pybind11==3.1.0
+pytest==9.1.1
+MonkeyType==23.3.0
+pyright==1.1.414

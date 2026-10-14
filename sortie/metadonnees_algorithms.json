@@ -1,0 +1,66 @@
+{
+  "script": "algorithms.py",
+  "business_categorization": {
+    "question": "What business process or domain does the script address?",
+    "regles": {
+      "categorie": "Outil technique générique",
+      "indices": [],
+      "scores": {}
+    },
+    "llm": {
+      "categorie": "Outil technique générique",
+      "indices": [
+        "is_prime",
+        "pgcd",
+        "factorial",
+        "fibonacci",
+        "is_palindrome"
+      ],
+      "confiance": 0.95
+    }
+  },
+  "technical_categorization": {
+    "question": "What technical operations are performed (e.g., data cleaning, modeling, reporting)?",
+    "regles": {
+      "categories": [
+        "Utilitaire",
+        "Calcul / Algorithmique"
+      ],
+      "raisons": {
+        "Utilitaire": [
+          "appel lower()"
+        ],
+        "Calcul / Algorithmique": [
+          "7 opérations arithmétiques"
+        ]
+      }
+    },
+    "llm": {
+      "categories": [
+        "Calcul / Algorithmique"
+      ],
+      "justification": "Le script contient uniquement des fonctions mathématiques pures (is_prime, pgcd, factorial, fibonacci) et une vérification de chaîne (is_palindrome), sans interaction avec le système de fichiers ou les bases de données."
+    }
+  },
+  "complexity": {
+    "question": "Assess the script's complexity (e.g., simple, moderate, complex) based on logic, length, and dependencies.",
+    "regles": {
+      "niveau": "modéré",
+      "score": 13,
+      "detail": "score 13 = branches/boucles 13 + imbrication 0 (profondeur max 2) + taille 0 + dépendances 0"
+    },
+    "llm": {
+      "niveau": "simple",
+      "justification": "Le code est composé de fonctions indépendantes et courtes avec une logique linéaire ou itérative simple (boucles for/while basiques). Il n'y a pas de gestion d'erreurs complexe, de dépendances externes ni de logique conditionnelle imbriquée profonde."
+    }
+  },
+  "description": {
+    "question": "Generate a brief summary of what the script does.",
+    "llm": "Calcule des propriétés mathématiques (nombre premier, PGCD, factorielle, suite de Fibonacci) et vérifie la propriété de palindrome sur une chaîne de caractères Entrées : Aucune entrée externe : valeurs codées en dur dans le script. Sorties : Des messages affichés dans la console via print() montrant les résultats des calculs",
+    "detail": {
+      "lu": "Aucune entrée externe : valeurs codées en dur dans le script",
+      "fait": "Calcule des propriétés mathématiques (nombre premier, PGCD, factorielle, suite de Fibonacci) et vérifie la propriété de palindrome sur une chaîne de caractères",
+      "produit": "Des messages affichés dans la console via print() montrant les résultats des calculs"
+    }
+  }
+}

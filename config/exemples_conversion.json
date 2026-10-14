@@ -1,0 +1,273 @@
+{
+  "standard_cpp": "C++17",
+  "verification": "Chaque exemple a été compilé (g++ 15, -std=c++17 -Wall -Wextra -Wpedantic -Werror) et exécuté ; sa sortie est identique à celle du script Python (code de retour pour pytest).",
+  "categories": {
+    "Nettoyage de données": [
+      {
+        "titre": "fillna(moyenne) / dropna sur une colonne avec valeurs manquantes",
+        "types": {
+          "pd.Series[float] (avec NaN/None)": "std::vector<std::optional<double>>",
+          "float NaN": "std::numeric_limits<double>::quiet_NaN()"
+        },
+        "python": "import pandas as pd\n\ndef nettoyer_montants(montants: pd.Series) -> pd.Series:\n    moyenne = montants.mean()          # mean() ignore les NaN\n    return montants.fillna(moyenne)\n\ns = pd.Series([100.0, None, 250.5, None, 49.5])\npropre = nettoyer_montants(s)\nprint(\"valeurs:\", \" \".join(f\"{v:.2f}\" for v in propre))\nprint(\"lignes sans NaN:\", len(s.dropna()))\n",
+        "cpp": "#include <cstddef>\n#include <iomanip>\n#include <iostream>\n#include <limits>\n#include <optional>\n#include <vector>\n\nstd::vector<double> nettoyer_montants(const std::vector<std::optional<double>>& montants) {\n    double somme = 0.0;\n    std::size_t n = 0;\n    for (const auto& m : montants)\n        if (m) { somme += *m; ++n; }  // mean() ignore les NaN\n    const double moyenne = n ? somme / static_cast<double>(n)\n                             : std::numeric_limits<double>::quiet_NaN();  // pandas : mean() d'une serie vide = NaN\n    std::vector<double> resultat;\n    resultat.reserve(montants.size());\n    for (const auto& m : montants)\n        resultat.push_back(m.value_or(moyenne));\n    return resultat;\n}\n\nint main() {\n    const std::vector<std::optional<double>> s = {100.0, std::nullopt, 250.5, std::nullopt, 49.5};\n    const auto propre = nettoyer_montants(s);\n    std::cout << std::fixed << std::setprecision(2) << \"valeurs:\";\n    for (double v : propre) std::cout << ' ' << v;\n    std::cout << '\\n';\n    std::size_t non_nuls = 0;\n    for (const auto& m : s) if (m) ++non_nuls;\n    std::cout << \"lignes sans NaN: \" << non_nuls << '\\n';\n}\n",
+        "points_attention": [
+          "Représenter une valeur manquante par std::optional plutôt que par un NaN magique : l'absence devient explicite et vérifiée.",
+          "mean() de pandas ignore les NaN : il faut compter uniquement les valeurs présentes.",
+          "Cas limite : série entièrement vide, pandas renvoie NaN, ne pas renvoyer 0 silencieusement."
+        ]
+      },
+      {
+        "titre": "Normalisation de chaînes (strip/lower) + suppression des doublons en gardant l'ordre",
+        "types": {
+          "list[str]": "std::vector<std::string>",
+          "set[str]": "std::unordered_set<std::string>"
+        },
+        "python": "def normaliser_clients(noms: list[str]) -> list[str]:\n    vus = set()\n    resultat = []\n    for nom in noms:\n        propre = nom.strip().lower()\n        if propre and propre not in vus:\n            vus.add(propre)\n            resultat.append(propre)\n    return resultat\n\nprint(\"|\".join(normaliser_clients([\"  Dupont \", \"dupont\", \"MARTIN\", \"\", \"Martin  \", \"Durand\"])))\n",
+        "cpp": "#include <algorithm>\n#include <cctype>\n#include <iostream>\n#include <string>\n#include <unordered_set>\n#include <vector>\n\nstd::string strip_lower(const std::string& s) {\n    const auto debut = s.find_first_not_of(\" \\t\\n\\r\\f\\v\");\n    if (debut == std::string::npos) return \"\";\n    const auto fin = s.find_last_not_of(\" \\t\\n\\r\\f\\v\");\n    std::string r = s.substr(debut, fin - debut + 1);\n    std::transform(r.begin(), r.end(), r.begin(),\n                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });\n    return r;\n}\n\nstd::vector<std::string> normaliser_clients(const std::vector<std::string>& noms) {\n    std::unordered_set<std::string> vus;\n    std::vector<std::string> resultat;\n    for (const auto& nom : noms) {\n        std::string propre = strip_lower(nom);\n        if (!propre.empty() && vus.insert(propre).second)  // insert().second == true si nouvel element\n            resultat.push_back(propre);\n    }\n    return resultat;\n}\n\nint main() {\n    const auto r = normaliser_clients({\"  Dupont \", \"dupont\", \"MARTIN\", \"\", \"Martin  \", \"Durand\"});\n    for (std::size_t i = 0; i < r.size(); ++i)\n        std::cout << (i ? \"|\" : \"\") << r[i];\n    std::cout << '\\n';\n}\n",
+        "points_attention": [
+          "str.strip() / str.lower() n'existent pas : écrire des helpers avec find_first_not_of et std::transform.",
+          "std::tolower ne gère que l'ASCII : 'É'.lower() en Python fonctionne, pas en C++ sans ICU ou std::wstring + locale.",
+          "Passer un unsigned char à std::tolower (un char négatif = comportement indéfini).",
+          "Un set Python ne garde pas l'ordre : ici l'ordre vient de la liste résultat, comme en Python."
+        ]
+      }
+    ],
+    "Transformation de données": [
+      {
+        "titre": "groupby().sum() (agrégation par clé)",
+        "types": {
+          "pd.DataFrame (colonnes region, montant)": "std::vector<Vente> avec struct Vente { std::string region; double montant; }",
+          "pd.Series indexée par clé (résultat du groupby)": "std::map<std::string, double>"
+        },
+        "python": "import pandas as pd\n\nventes = pd.DataFrame({\n    \"region\": [\"Nord\", \"Sud\", \"Nord\", \"Est\", \"Sud\"],\n    \"montant\": [120.0, 80.5, 30.0, 45.25, 19.5],\n})\ntotal = ventes.groupby(\"region\")[\"montant\"].sum()   # clés triées par défaut\nfor region, montant in total.items():\n    print(f\"{region}: {montant:.2f}\")\n",
+        "cpp": "#include <iomanip>\n#include <iostream>\n#include <map>\n#include <string>\n#include <vector>\n\nstruct Vente {\n    std::string region;\n    double montant;\n};\n\nstd::map<std::string, double> total_par_region(const std::vector<Vente>& ventes) {\n    std::map<std::string, double> total;  // std::map = cles triees, comme groupby(sort=True)\n    for (const auto& v : ventes)\n        total[v.region] += v.montant;     // operator[] initialise a 0.0\n    return total;\n}\n\nint main() {\n    const std::vector<Vente> ventes = {\n        {\"Nord\", 120.0}, {\"Sud\", 80.5}, {\"Nord\", 30.0}, {\"Est\", 45.25}, {\"Sud\", 19.5}};\n    std::cout << std::fixed << std::setprecision(2);\n    for (const auto& [region, montant] : total_par_region(ventes))\n        std::cout << region << \": \" << montant << '\\n';\n}\n",
+        "points_attention": [
+          "Un DataFrame se traduit en std::vector<struct> (une ligne = une struct), pas en map de colonnes.",
+          "groupby trie les clés par défaut : utiliser std::map (trié) et non std::unordered_map, sinon l'ordre de sortie change.",
+          "groupby(sort=False) garde l'ordre d'apparition : il faut alors un vecteur de clés + un index unordered_map."
+        ]
+      },
+      {
+        "titre": "merge(how='inner') (jointure sur une clé)",
+        "types": {
+          "pd.DataFrame de gauche": "std::vector<Commande>",
+          "pd.DataFrame de droite (table de référence)": "std::unordered_map<int64_t, std::string>",
+          "colonne int64": "int64_t"
+        },
+        "python": "import pandas as pd\n\ncommandes = pd.DataFrame({\"client_id\": [1, 2, 1, 3], \"montant\": [50.0, 20.0, 30.0, 99.0]})\nclients = pd.DataFrame({\"client_id\": [1, 2], \"nom\": [\"Alice\", \"Bob\"]})\nfusion = commandes.merge(clients, on=\"client_id\", how=\"inner\")\nfor row in fusion.itertuples(index=False):\n    print(row.client_id, row.nom, f\"{row.montant:.2f}\")\n",
+        "cpp": "#include <cstdint>\n#include <iomanip>\n#include <iostream>\n#include <string>\n#include <unordered_map>\n#include <vector>\n\nstruct Commande {\n    int64_t client_id;\n    double montant;\n};\n\nstruct CommandeClient {\n    int64_t client_id;\n    std::string nom;\n    double montant;\n};\n\nstd::vector<CommandeClient> jointure_interne(const std::vector<Commande>& commandes,\n                                             const std::unordered_map<int64_t, std::string>& clients) {\n    std::vector<CommandeClient> fusion;\n    for (const auto& c : commandes) {\n        const auto it = clients.find(c.client_id);\n        if (it != clients.end())  // inner : on ignore les cles absentes a droite\n            fusion.push_back({c.client_id, it->second, c.montant});\n    }\n    return fusion;\n}\n\nint main() {\n    const std::vector<Commande> commandes = {{1, 50.0}, {2, 20.0}, {1, 30.0}, {3, 99.0}};\n    const std::unordered_map<int64_t, std::string> clients = {{1, \"Alice\"}, {2, \"Bob\"}};\n    std::cout << std::fixed << std::setprecision(2);\n    for (const auto& r : jointure_interne(commandes, clients))\n        std::cout << r.client_id << ' ' << r.nom << ' ' << r.montant << '\\n';\n}\n",
+        "points_attention": [
+          "Jointure = table de hachage construite sur la petite table, puis parcours de la grande : O(n + m).",
+          "Utiliser find() et non operator[] sur la map de référence : operator[] insérerait une clé vide.",
+          "how='left' : garder la ligne et mettre std::optional<std::string> pour la colonne de droite.",
+          "Si la table de droite a des clés en double, il faut std::unordered_multimap (merge produit alors plusieurs lignes)."
+        ]
+      }
+    ],
+    "Modélisation / ML": [
+      {
+        "titre": "LinearRegression().fit / predict (régression linéaire simple)",
+        "types": {
+          "np.ndarray 2D (n, 1)": "std::vector<double>",
+          "np.ndarray 1D": "std::vector<double>",
+          "LinearRegression (modèle entraîné)": "struct ModeleLineaire { double pente; double ordonnee; }"
+        },
+        "python": "import numpy as np\nfrom sklearn.linear_model import LinearRegression\n\nsurface = np.array([[30.0], [45.0], [60.0], [80.0], [100.0]])\nprix = np.array([150.0, 210.0, 270.0, 345.0, 420.0])\nmodele = LinearRegression().fit(surface, prix)\nprint(f\"pente={modele.coef_[0]:.4f} ordonnee={modele.intercept_:.4f}\")\nprint(f\"prediction 70m2={modele.predict([[70.0]])[0]:.2f}\")\n",
+        "cpp": "#include <cstddef>\n#include <iomanip>\n#include <iostream>\n#include <stdexcept>\n#include <vector>\n\nstruct ModeleLineaire {\n    double pente = 0.0;\n    double ordonnee = 0.0;\n\n    double predict(double x) const { return pente * x + ordonnee; }\n};\n\n// Moindres carres ordinaires, solution fermee (equivalent de LinearRegression pour 1 variable)\nModeleLineaire fit(const std::vector<double>& x, const std::vector<double>& y) {\n    if (x.size() != y.size() || x.size() < 2)\n        throw std::invalid_argument(\"x et y doivent avoir la meme taille (>= 2)\");\n    const double n = static_cast<double>(x.size());\n    double mx = 0.0, my = 0.0;\n    for (std::size_t i = 0; i < x.size(); ++i) { mx += x[i]; my += y[i]; }\n    mx /= n;\n    my /= n;\n    double sxy = 0.0, sxx = 0.0;\n    for (std::size_t i = 0; i < x.size(); ++i) {\n        sxy += (x[i] - mx) * (y[i] - my);\n        sxx += (x[i] - mx) * (x[i] - mx);\n    }\n    ModeleLineaire m;\n    m.pente = sxy / sxx;\n    m.ordonnee = my - m.pente * mx;\n    return m;\n}\n\nint main() {\n    const std::vector<double> surface = {30.0, 45.0, 60.0, 80.0, 100.0};\n    const std::vector<double> prix = {150.0, 210.0, 270.0, 345.0, 420.0};\n    const ModeleLineaire modele = fit(surface, prix);\n    std::cout << std::fixed << std::setprecision(4)\n              << \"pente=\" << modele.pente << \" ordonnee=\" << modele.ordonnee << '\\n'\n              << std::setprecision(2) << \"prediction 70m2=\" << modele.predict(70.0) << '\\n';\n}\n",
+        "points_attention": [
+          "Pas de scikit-learn en C++ : réimplémenter la formule fermée (cas simple) ou utiliser Eigen pour la forme matricielle (plusieurs variables).",
+          "Un modèle sklearn devient une struct qui contient ses paramètres appris + une méthode predict() const.",
+          "Comparer avec Python avec une tolérance (1e-9) : l'ordre des opérations flottantes peut différer.",
+          "Pour des modèles complexes (XGBoost, réseaux), entraîner en Python et exporter (ONNX, JSON des coefficients) plutôt que tout réécrire."
+        ]
+      },
+      {
+        "titre": "StandardScaler().fit_transform (centrage-réduction par colonne)",
+        "types": {
+          "np.ndarray 2D (n_lignes, n_colonnes)": "std::vector<std::vector<double>> (ou Eigen::MatrixXd)",
+          "StandardScaler (mean_, scale_)": "struct Scaler { std::vector<double> moyenne, ecart_type; }"
+        },
+        "python": "import numpy as np\nfrom sklearn.preprocessing import StandardScaler\n\nX = np.array([[1.0, 200.0], [2.0, 300.0], [3.0, 400.0], [4.0, 1000.0]])\nXs = StandardScaler().fit_transform(X)\nfor ligne in Xs:\n    print(\" \".join(f\"{v:.4f}\" for v in ligne))\n",
+        "cpp": "#include <cmath>\n#include <cstddef>\n#include <iomanip>\n#include <iostream>\n#include <vector>\n\nusing Matrice = std::vector<std::vector<double>>;\n\nstruct Scaler {\n    std::vector<double> moyenne, ecart_type;\n\n    void fit(const Matrice& X) {\n        const std::size_t n = X.size(), p = X.at(0).size();\n        moyenne.assign(p, 0.0);\n        ecart_type.assign(p, 0.0);\n        for (const auto& ligne : X)\n            for (std::size_t j = 0; j < p; ++j) moyenne[j] += ligne[j];\n        for (auto& m : moyenne) m /= static_cast<double>(n);\n        for (const auto& ligne : X)\n            for (std::size_t j = 0; j < p; ++j) ecart_type[j] += (ligne[j] - moyenne[j]) * (ligne[j] - moyenne[j]);\n        for (auto& e : ecart_type) {\n            e = std::sqrt(e / static_cast<double>(n));  // ecart-type de population (ddof=0), comme sklearn\n            if (e == 0.0) e = 1.0;                       // sklearn : colonne constante -> on ne divise pas\n        }\n    }\n\n    Matrice transform(const Matrice& X) const {\n        Matrice r = X;\n        for (auto& ligne : r)\n            for (std::size_t j = 0; j < ligne.size(); ++j) ligne[j] = (ligne[j] - moyenne[j]) / ecart_type[j];\n        return r;\n    }\n\n    Matrice fit_transform(const Matrice& X) { fit(X); return transform(X); }\n};\n\nint main() {\n    const Matrice X = {{1.0, 200.0}, {2.0, 300.0}, {3.0, 400.0}, {4.0, 1000.0}};\n    Scaler scaler;\n    std::cout << std::fixed << std::setprecision(4);\n    for (const auto& ligne : scaler.fit_transform(X)) {\n        for (std::size_t j = 0; j < ligne.size(); ++j) std::cout << (j ? \" \" : \"\") << ligne[j];\n        std::cout << '\\n';\n    }\n}\n",
+        "points_attention": [
+          "sklearn utilise l'écart-type de population (ddof=0), alors que pandas .std() utilise ddof=1 : bien vérifier lequel est utilisé.",
+          "Colonne constante : sklearn remplace l'écart-type 0 par 1, pour éviter une division par zéro (NaN/inf).",
+          "Séparer fit (apprendre moyenne / écart-type) et transform (appliquer) : on réutilise le même scaler sur les données de test."
+        ]
+      }
+    ],
+    "Reporting / Visualisation": [
+      {
+        "titre": "Rapport texte formaté (f-strings avec alignement et pourcentage)",
+        "types": {
+          "dict[str, float] (ordre d'insertion significatif)": "std::vector<std::pair<std::string, double>>",
+          "f-string {x:>10.2f}": "std::printf(\"%10.2f\") ou std::setw(10) << std::fixed << std::setprecision(2)"
+        },
+        "python": "ventes = {\"Nord\": 150.0, \"Sud\": 100.0, \"Est\": 45.25}\ntotal = sum(ventes.values())\nprint(f\"{'Region':<10}{'Montant':>10}{'Part':>8}\")\nfor region, montant in sorted(ventes.items(), key=lambda kv: kv[1], reverse=True):\n    print(f\"{region:<10}{montant:>10.2f}{montant / total:>8.1%}\")\nprint(f\"{'TOTAL':<10}{total:>10.2f}\")\n",
+        "cpp": "#include <algorithm>\n#include <cstdio>\n#include <string>\n#include <utility>\n#include <vector>\n\nvoid imprimer_rapport(std::vector<std::pair<std::string, double>> ventes) {\n    double total = 0.0;\n    for (const auto& [region, montant] : ventes) total += montant;\n\n    std::stable_sort(ventes.begin(), ventes.end(),  // sorted() de Python est stable\n                     [](const auto& a, const auto& b) { return a.second > b.second; });\n\n    std::printf(\"%-10s%10s%8s\\n\", \"Region\", \"Montant\", \"Part\");\n    for (const auto& [region, montant] : ventes)\n        std::printf(\"%-10s%10.2f%7.1f%%\\n\", region.c_str(), montant, 100.0 * montant / total);\n    std::printf(\"%-10s%10.2f\\n\", \"TOTAL\", total);\n}\n\nint main() {\n    imprimer_rapport({{\"Nord\", 150.0}, {\"Sud\", 100.0}, {\"Est\", 45.25}});\n}\n",
+        "points_attention": [
+          "Correspondance des formats : {:<10} -> %-10s, {:>10.2f} -> %10.2f, {:>8.1%} -> %7.1f%% (multiplier par 100, le % compte dans la largeur).",
+          "sorted() est stable : utiliser std::stable_sort (std::sort peut inverser les égalités).",
+          "Un dict dont l'ordre compte se traduit par std::vector<std::pair>, pas par unordered_map.",
+          "printf %s attend un const char* : appeler .c_str() sur une std::string."
+        ]
+      },
+      {
+        "titre": "Graphique matplotlib (plt.bar + savefig) -> fichier SVG écrit à la main",
+        "types": {
+          "list[str] (étiquettes)": "std::vector<std::string>",
+          "list[float] (valeurs)": "std::vector<double>",
+          "matplotlib.pyplot": "pas d'équivalent standard : SVG généré, ou bibliothèque externe (matplotplusplus, gnuplot)"
+        },
+        "python": "import matplotlib\nmatplotlib.use(\"Agg\")\nimport matplotlib.pyplot as plt\n\nregions = [\"Nord\", \"Sud\", \"Est\"]\nmontants = [150.0, 100.0, 45.25]\nplt.bar(regions, montants)\nplt.title(\"CA par region\")\nplt.savefig(\"ca_regions.png\")\nprint(f\"graphique: {len(regions)} barres, max={max(montants):.2f}\")\n",
+        "cpp": "#include <algorithm>\n#include <cstddef>\n#include <fstream>\n#include <iomanip>\n#include <iostream>\n#include <stdexcept>\n#include <string>\n#include <vector>\n\nvoid bar_chart_svg(const std::string& chemin, const std::string& titre,\n                   const std::vector<std::string>& etiquettes, const std::vector<double>& valeurs) {\n    if (valeurs.empty() || valeurs.size() != etiquettes.size())\n        throw std::invalid_argument(\"etiquettes et valeurs incoherentes\");\n    const double largeur = 400, hauteur = 300, marge = 40;\n    const double max_v = *std::max_element(valeurs.begin(), valeurs.end());\n    const double pas = (largeur - 2 * marge) / static_cast<double>(valeurs.size());\n\n    std::ofstream f(chemin);\n    if (!f) throw std::runtime_error(\"impossible d'ecrire \" + chemin);\n    f << \"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" width=\\\"\" << largeur << \"\\\" height=\\\"\" << hauteur << \"\\\">\\n\"\n      << \"<text x=\\\"\" << largeur / 2 << \"\\\" y=\\\"20\\\" text-anchor=\\\"middle\\\">\" << titre << \"</text>\\n\";\n    for (std::size_t i = 0; i < valeurs.size(); ++i) {\n        const double h = valeurs[i] / max_v * (hauteur - 2 * marge);\n        const double x = marge + static_cast<double>(i) * pas + pas * 0.1;\n        f << \"<rect x=\\\"\" << x << \"\\\" y=\\\"\" << hauteur - marge - h << \"\\\" width=\\\"\" << pas * 0.8\n          << \"\\\" height=\\\"\" << h << \"\\\" fill=\\\"steelblue\\\"/>\\n\"\n          << \"<text x=\\\"\" << x + pas * 0.4 << \"\\\" y=\\\"\" << hauteur - marge + 15\n          << \"\\\" text-anchor=\\\"middle\\\">\" << etiquettes[i] << \"</text>\\n\";\n    }\n    f << \"</svg>\\n\";\n}\n\nint main() {\n    const std::vector<std::string> regions = {\"Nord\", \"Sud\", \"Est\"};\n    const std::vector<double> montants = {150.0, 100.0, 45.25};\n    bar_chart_svg(\"ca_regions.svg\", \"CA par region\", regions, montants);\n    std::cout << \"graphique: \" << regions.size() << \" barres, max=\" << std::fixed << std::setprecision(2)\n              << *std::max_element(montants.begin(), montants.end()) << '\\n';\n}\n",
+        "points_attention": [
+          "La bibliothèque standard C++ ne trace pas de graphiques. Options : générer du SVG (texte, aucune dépendance), matplotplusplus, gnuplot, ou exporter un CSV qu'un autre outil tracera.",
+          "Le format de sortie change (PNG -> SVG) : le signaler dans le rapport de conversion.",
+          "Vérifier que le fichier s'est bien ouvert (if (!f)) : open() en Python lève une exception, ofstream non."
+        ]
+      }
+    ],
+    "Entrées-sorties / Intégration": [
+      {
+        "titre": "Lecture CSV (csv.DictReader) avec agrégation",
+        "types": {
+          "csv.DictReader (ligne -> dict)": "std::ifstream + std::getline + découpage manuel (ou bibliothèque rapidcsv / csv-parser)",
+          "dict[str, float] (ordre d'insertion)": "std::vector<std::string> (ordre) + std::unordered_map<std::string, double>",
+          "float(str)": "std::stod"
+        },
+        "python": "import csv\n\ndef total_par_produit(chemin: str) -> dict[str, float]:\n    totaux: dict[str, float] = {}\n    with open(chemin, newline=\"\", encoding=\"utf-8\") as f:\n        for ligne in csv.DictReader(f):\n            produit = ligne[\"produit\"]\n            totaux[produit] = totaux.get(produit, 0.0) + float(ligne[\"quantite\"]) * float(ligne[\"prix\"])\n    return totaux\n\nwith open(\"ventes.csv\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"produit,quantite,prix\\nstylo,10,1.5\\ncahier,3,2.25\\nstylo,4,1.5\\n\")\nfor produit, total in total_par_produit(\"ventes.csv\").items():\n    print(f\"{produit}: {total:.2f}\")\n",
+        "cpp": "#include <cstddef>\n#include <fstream>\n#include <iomanip>\n#include <iostream>\n#include <sstream>\n#include <stdexcept>\n#include <string>\n#include <unordered_map>\n#include <utility>\n#include <vector>\n\nstd::vector<std::string> split(const std::string& ligne, char sep) {\n    std::vector<std::string> champs;\n    std::stringstream ss(ligne);\n    std::string champ;\n    while (std::getline(ss, champ, sep)) champs.push_back(champ);\n    return champs;\n}\n\nstd::vector<std::pair<std::string, double>> total_par_produit(const std::string& chemin) {\n    std::ifstream f(chemin);\n    if (!f) throw std::runtime_error(\"fichier introuvable : \" + chemin);\n\n    std::string ligne;\n    std::getline(f, ligne);\n    if (!ligne.empty() && ligne.back() == '\\r') ligne.pop_back();\n    std::unordered_map<std::string, std::size_t> col;  // nom de colonne -> index (comme DictReader)\n    const auto entete = split(ligne, ',');\n    for (std::size_t i = 0; i < entete.size(); ++i) col[entete[i]] = i;\n\n    std::vector<std::string> ordre;                    // un dict Python garde l'ordre d'insertion\n    std::unordered_map<std::string, double> totaux;\n    while (std::getline(f, ligne)) {\n        if (!ligne.empty() && ligne.back() == '\\r') ligne.pop_back();  // fichiers Windows (\\r\\n)\n        if (ligne.empty()) continue;\n        const auto c = split(ligne, ',');\n        const std::string& produit = c.at(col.at(\"produit\"));\n        if (totaux.find(produit) == totaux.end()) ordre.push_back(produit);\n        totaux[produit] += std::stod(c.at(col.at(\"quantite\"))) * std::stod(c.at(col.at(\"prix\")));\n    }\n    std::vector<std::pair<std::string, double>> resultat;\n    for (const auto& p : ordre) resultat.emplace_back(p, totaux[p]);\n    return resultat;\n}\n\nint main() {\n    {\n        std::ofstream f(\"ventes.csv\");\n        f << \"produit,quantite,prix\\nstylo,10,1.5\\ncahier,3,2.25\\nstylo,4,1.5\\n\";\n    }  // fin de portee = fermeture du fichier (equivalent du with)\n    std::cout << std::fixed << std::setprecision(2);\n    for (const auto& [produit, total] : total_par_produit(\"ventes.csv\"))\n        std::cout << produit << \": \" << total << '\\n';\n}\n",
+        "points_attention": [
+          "Le module csv n'a pas d'équivalent standard. Un split sur ',' ne gère PAS les champs entre guillemets (\"a,b\") : pour des CSV réels, utiliser une bibliothèque (rapidcsv, csv-parser).",
+          "Retirer le '\\r' final : getline ne le supprime pas pour les fichiers créés sous Windows.",
+          "Le bloc with devient une portée { } : le fichier est fermé automatiquement à la sortie (RAII).",
+          "Un dict Python garde l'ordre d'insertion, pas std::unordered_map : garder un vecteur d'ordre si la sortie en dépend.",
+          "Utiliser .at() plutôt que [] pour lever une exception si une colonne manque (KeyError en Python)."
+        ]
+      },
+      {
+        "titre": "Arguments CLI (sys.argv) + lecture / écriture de fichiers texte + gestion d'erreur",
+        "types": {
+          "sys.argv": "int argc, char* argv[]",
+          "open(..., 'r') / open(..., 'w')": "std::ifstream / std::ofstream",
+          "OSError": "std::runtime_error (levée à la main après vérification du flux)",
+          "sys.exit(1)": "return 1 depuis main"
+        },
+        "python": "import sys\n\ndef filtrer_erreurs(entree: str, sortie: str) -> int:\n    n = 0\n    with open(entree, encoding=\"utf-8\") as f_in, open(sortie, \"w\", encoding=\"utf-8\") as f_out:\n        for ligne in f_in:\n            if ligne.startswith(\"ERROR\"):\n                f_out.write(ligne)\n                n += 1\n    return n\n\nif __name__ == \"__main__\":\n    chemin = sys.argv[1] if len(sys.argv) > 1 else \"app.log\"\n    with open(chemin, \"w\", encoding=\"utf-8\") as f:\n        f.write(\"INFO demarrage\\nERROR disque plein\\nWARN lent\\nERROR timeout\\n\")\n    try:\n        n = filtrer_erreurs(chemin, \"erreurs.log\")\n    except OSError as e:\n        print(f\"erreur: {e}\", file=sys.stderr)\n        sys.exit(1)\n    print(f\"{n} lignes d'erreur copiees\")\n",
+        "cpp": "#include <exception>\n#include <fstream>\n#include <iostream>\n#include <stdexcept>\n#include <string>\n\nint filtrer_erreurs(const std::string& entree, const std::string& sortie) {\n    std::ifstream f_in(entree);\n    if (!f_in) throw std::runtime_error(\"impossible de lire \" + entree);\n    std::ofstream f_out(sortie);\n    if (!f_out) throw std::runtime_error(\"impossible d'ecrire \" + sortie);\n    int n = 0;\n    std::string ligne;\n    while (std::getline(f_in, ligne)) {\n        if (ligne.rfind(\"ERROR\", 0) == 0) {  // startswith (C++20 : ligne.starts_with(\"ERROR\"))\n            f_out << ligne << '\\n';           // getline retire le '\\n', on le remet\n            ++n;\n        }\n    }\n    return n;\n}\n\nint main(int argc, char* argv[]) {\n    const std::string chemin = argc > 1 ? argv[1] : \"app.log\";  // argv[0] = nom du programme, comme en Python\n    {\n        std::ofstream f(chemin);\n        f << \"INFO demarrage\\nERROR disque plein\\nWARN lent\\nERROR timeout\\n\";\n    }\n    try {\n        const int n = filtrer_erreurs(chemin, \"erreurs.log\");\n        std::cout << n << \" lignes d'erreur copiees\\n\";\n    } catch (const std::exception& e) {\n        std::cerr << \"erreur: \" << e.what() << '\\n';\n        return 1;\n    }\n    return 0;\n}\n",
+        "points_attention": [
+          "Les flux C++ ne lèvent pas d'exception par défaut quand l'ouverture échoue : tester if (!flux) puis lever l'exception, pour garder le comportement de Python.",
+          "for ligne in f garde le '\\n' final, std::getline le retire : le rajouter à l'écriture.",
+          "sys.argv[0] et argv[0] sont tous deux le nom du programme : les indices restent les mêmes.",
+          "sys.exit(code) -> return code dans main (éviter std::exit, qui saute les destructeurs des objets locaux)."
+        ]
+      }
+    ],
+    "Calcul / Algorithmique": [
+      {
+        "titre": "Statistiques numpy (mean, std, dot, masque booléen)",
+        "types": {
+          "np.ndarray[float64] 1D": "std::vector<double>",
+          "np.mean / np.std": "std::accumulate (<numeric>)",
+          "np.dot": "std::inner_product",
+          "(arr > x).sum()": "std::count_if"
+        },
+        "python": "import numpy as np\n\nnotes = np.array([12.0, 15.5, 9.0, 18.0, 14.5])\npoids = np.array([1.0, 2.0, 1.0, 3.0, 1.0])\nprint(f\"moyenne={notes.mean():.4f}\")\nprint(f\"ecart-type={notes.std():.4f}\")          # ddof=0 par défaut dans numpy\nprint(f\"moyenne ponderee={np.dot(notes, poids) / poids.sum():.4f}\")\nprint(f\"au-dessus de 14: {int((notes > 14).sum())}\")\n",
+        "cpp": "#include <algorithm>\n#include <cmath>\n#include <iomanip>\n#include <iostream>\n#include <numeric>\n#include <vector>\n\ndouble moyenne(const std::vector<double>& v) {\n    return std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size());  // 0.0 et non 0 !\n}\n\ndouble ecart_type(const std::vector<double>& v) {  // ddof=0 comme numpy\n    const double m = moyenne(v);\n    const double sc = std::accumulate(v.begin(), v.end(), 0.0,\n                                      [m](double acc, double x) { return acc + (x - m) * (x - m); });\n    return std::sqrt(sc / static_cast<double>(v.size()));\n}\n\nint main() {\n    const std::vector<double> notes = {12.0, 15.5, 9.0, 18.0, 14.5};\n    const std::vector<double> poids = {1.0, 2.0, 1.0, 3.0, 1.0};\n    const double pondere = std::inner_product(notes.begin(), notes.end(), poids.begin(), 0.0)\n                           / std::accumulate(poids.begin(), poids.end(), 0.0);\n    const auto au_dessus = std::count_if(notes.begin(), notes.end(), [](double x) { return x > 14; });\n    std::cout << std::fixed << std::setprecision(4)\n              << \"moyenne=\" << moyenne(notes) << '\\n'\n              << \"ecart-type=\" << ecart_type(notes) << '\\n'\n              << \"moyenne ponderee=\" << pondere << '\\n'\n              << \"au-dessus de 14: \" << au_dessus << '\\n';\n}\n",
+        "points_attention": [
+          "std::accumulate(v.begin(), v.end(), 0) avec un 0 entier tronque chaque somme en int : toujours écrire 0.0.",
+          "np.std utilise ddof=0, pandas .std() ddof=1 : diviser par n ou par n-1 selon la source.",
+          "Pour du calcul matriciel (np.ndarray 2D, opérations vectorisées), préférer Eigen ou xtensor à des vector<vector>.",
+          "Moyenne d'un tableau vide : numpy renvoie nan + warning, le C++ ferait 0/0 = nan sans prévenir. Vérifier empty() si besoin."
+        ]
+      },
+      {
+        "titre": "Division entière, modulo négatif, puissance entière et division réelle",
+        "types": {
+          "int (opérandes de // et %)": "int64_t avec helpers floor_div / floor_mod",
+          "x ** n (entiers)": "boucle de multiplication entière (pas std::pow, qui renvoie un double)",
+          "a / b (int / int en Python 3)": "static_cast<double>(a) / b"
+        },
+        "python": "def decaler_jour(jour: int, decalage: int) -> int:\n    return (jour + decalage) % 7          # toujours dans [0, 6] en Python\n\ndef tranches(montant: int, taille: int) -> int:\n    return montant // taille              # arrondi vers -infini\n\nprint(decaler_jour(1, -3), tranches(-7, 2), tranches(7, 2), 3 ** 13, 7 / 2)\n",
+        "cpp": "#include <cstdint>\n#include <iostream>\n\n// Python : // arrondit vers -inf et % a le signe du diviseur. C++ : / et % tronquent vers 0.\nint64_t floor_div(int64_t a, int64_t b) {\n    int64_t q = a / b;\n    if ((a % b != 0) && ((a < 0) != (b < 0))) --q;\n    return q;\n}\n\nint64_t floor_mod(int64_t a, int64_t b) {\n    int64_t r = a % b;\n    if (r != 0 && ((r < 0) != (b < 0))) r += b;\n    return r;\n}\n\nint64_t puissance(int64_t base, unsigned exposant) {  // std::pow travaille en double : imprecis au-dela de 2^53\n    int64_t r = 1;\n    while (exposant--) r *= base;\n    return r;\n}\n\nint64_t decaler_jour(int64_t jour, int64_t decalage) { return floor_mod(jour + decalage, 7); }\nint64_t tranches(int64_t montant, int64_t taille) { return floor_div(montant, taille); }\n\nint main() {\n    std::cout << decaler_jour(1, -3) << ' ' << tranches(-7, 2) << ' ' << tranches(7, 2) << ' '\n              << puissance(3, 13) << ' ' << static_cast<double>(7) / 2 << '\\n';\n}\n",
+        "points_attention": [
+          "(-2) % 7 vaut 5 en Python mais -2 en C++ ; -7 // 2 vaut -4 en Python mais -3 en C++ (-7 / 2). Toujours passer par floor_div / floor_mod quand un opérande peut être négatif.",
+          "En Python 3, / entre deux int donne un float : convertir un opérande en double en C++, sinon division entière.",
+          "** entre entiers : ne pas utiliser std::pow (double, perte de précision) ; boucle ou exponentiation rapide.",
+          "Les int Python n'ont pas de limite : vérifier qu'aucun résultat ne dépasse int64_t (sinon boost::multiprecision)."
+        ]
+      }
+    ],
+    "Tests": [
+      {
+        "titre": "unittest.TestCase (assertAlmostEqual, assertRaises)",
+        "types": {
+          "unittest.TestCase": "fonctions de test + macros (ou GoogleTest TEST / Catch2 TEST_CASE)",
+          "ValueError": "std::invalid_argument",
+          "round(x, 2)": "std::round(x * 100.0) / 100.0 (attention aux cas .5)"
+        },
+        "python": "import unittest\n\ndef remise(montant: float, taux: float) -> float:\n    if not 0 <= taux <= 1:\n        raise ValueError(\"taux invalide\")\n    return round(montant * (1 - taux), 2)\n\nclass TestRemise(unittest.TestCase):\n    def test_remise_normale(self):\n        self.assertAlmostEqual(remise(100.0, 0.2), 80.0)\n\n    def test_taux_invalide(self):\n        with self.assertRaises(ValueError):\n            remise(100.0, 1.5)\n\nif __name__ == \"__main__\":\n    resultat = unittest.main(exit=False, verbosity=0).result\n    print(f\"{resultat.testsRun} tests, {len(resultat.failures) + len(resultat.errors)} echec(s)\")\n",
+        "cpp": "#include <cmath>\n#include <iostream>\n#include <stdexcept>\n\ndouble remise(double montant, double taux) {\n    if (!(0.0 <= taux && taux <= 1.0)) throw std::invalid_argument(\"taux invalide\");\n    return std::round(montant * (1.0 - taux) * 100.0) / 100.0;\n}\n\n// Mini-framework sans dependance ; en projet reel, preferer GoogleTest ou Catch2.\nstatic int g_tests = 0, g_echecs = 0;\n#define CHECK_NEAR(a, b) \\\n    do { if (std::fabs((a) - (b)) > 1e-7) { ++g_echecs; std::cerr << __LINE__ << \": \" #a \" != \" #b \"\\n\"; } } while (0)\n#define CHECK_THROWS(expr, Exc) \\\n    do { bool ok = false; try { (void)(expr); } catch (const Exc&) { ok = true; } \\\n         if (!ok) { ++g_echecs; std::cerr << __LINE__ << \": \" #expr \" n'a pas leve \" #Exc \"\\n\"; } } while (0)\n\nvoid test_remise_normale() { ++g_tests; CHECK_NEAR(remise(100.0, 0.2), 80.0); }\nvoid test_taux_invalide() { ++g_tests; CHECK_THROWS(remise(100.0, 1.5), std::invalid_argument); }\n\nint main() {\n    test_remise_normale();\n    test_taux_invalide();\n    std::cout << g_tests << \" tests, \" << g_echecs << \" echec(s)\\n\";\n    return g_echecs ? 1 : 0;\n}\n",
+        "points_attention": [
+          "assertAlmostEqual compare à 7 décimales : utiliser une tolérance (fabs(a - b) <= 1e-7), jamais == sur des doubles.",
+          "assertRaises(ValueError) -> vérifier qu'une exception C++ d'un type précis est levée (ValueError ≈ std::invalid_argument).",
+          "round() de Python arrondit au pair (round(2.675, 2) = 2.67, round(0.5) = 0) ; std::round arrondit loin de zéro. Le résultat diffère sur les cas .5.",
+          "Le code de retour du programme de test (0 = succès) remplace le statut renvoyé par unittest."
+        ]
+      },
+      {
+        "titre": "pytest (parametrize, approx, raises)",
+        "types": {
+          "@pytest.mark.parametrize": "tableau de struct { entrée, attendu } parcouru en boucle (ou TEST_CASE + GENERATE dans Catch2)",
+          "pytest.approx": "comparaison avec tolérance relative",
+          "ZeroDivisionError": "std::domain_error (C++ ne lève rien sur une division par zéro)"
+        },
+        "python": "import pytest\n\ndef moyenne(valeurs: list[float]) -> float:\n    if not valeurs:\n        raise ZeroDivisionError(\"liste vide\")\n    return sum(valeurs) / len(valeurs)\n\n@pytest.mark.parametrize(\"valeurs, attendu\", [([1.0, 2.0, 3.0], 2.0), ([0.1, 0.2], 0.15)])\ndef test_moyenne(valeurs, attendu):\n    assert moyenne(valeurs) == pytest.approx(attendu)\n\ndef test_liste_vide():\n    with pytest.raises(ZeroDivisionError):\n        moyenne([])\n",
+        "cpp": "#include <algorithm>\n#include <cmath>\n#include <iostream>\n#include <numeric>\n#include <stdexcept>\n#include <vector>\n\ndouble moyenne(const std::vector<double>& valeurs) {\n    if (valeurs.empty()) throw std::domain_error(\"liste vide\");  // en C++, 0.0/0 donne nan sans erreur\n    return std::accumulate(valeurs.begin(), valeurs.end(), 0.0) / static_cast<double>(valeurs.size());\n}\n\nbool approx(double a, double b, double rel = 1e-6, double abs_tol = 1e-12) {  // = pytest.approx\n    return std::fabs(a - b) <= std::max(rel * std::fabs(b), abs_tol);\n}\n\nstruct Cas {\n    std::vector<double> valeurs;\n    double attendu;\n};\n\nint main() {\n    int echecs = 0;\n    const std::vector<Cas> cas = {{{1.0, 2.0, 3.0}, 2.0}, {{0.1, 0.2}, 0.15}};  // = parametrize\n    for (const auto& c : cas)\n        if (!approx(moyenne(c.valeurs), c.attendu)) { ++echecs; std::cerr << \"test_moyenne echoue\\n\"; }\n\n    bool leve = false;  // = pytest.raises\n    try { moyenne({}); } catch (const std::domain_error&) { leve = true; }\n    if (!leve) { ++echecs; std::cerr << \"test_liste_vide echoue\\n\"; }\n\n    std::cout << (echecs ? \"ECHEC\" : \"OK\") << '\\n';\n    return echecs ? 1 : 0;\n}\n",
+        "points_attention": [
+          "Vérification : succès = code de retour 0 (pytest et le programme C++).",
+          "parametrize devient un tableau de cas parcouru en boucle ; avec Catch2 : GENERATE, avec GoogleTest : TEST_P.",
+          "pytest.approx utilise une tolérance relative de 1e-6 : 0.1 + 0.2 != 0.3 aussi en C++.",
+          "La division flottante par zéro ne lève pas d'exception en C++ (elle donne inf ou nan) : ajouter le test et le throw explicitement pour reproduire ZeroDivisionError."
+        ]
+      }
+    ],
+    "Utilitaire": [
+      {
+        "titre": "Conversion str -> int sûre avec try/except et Optional",
+        "types": {
+          "Optional[int]": "std::optional<int64_t>",
+          "int(str)": "std::stoll + vérification que toute la chaîne est consommée",
+          "None": "std::nullopt",
+          "ValueError": "std::invalid_argument / std::out_of_range"
+        },
+        "python": "from typing import Optional\n\ndef parse_int(texte: str) -> Optional[int]:\n    try:\n        return int(texte.strip())\n    except ValueError:\n        return None\n\nfor t in [\"42\", \" -7 \", \"12abc\", \"\", \"3.5\", \"+8\"]:\n    print(f\"[{t}] -> {parse_int(t)}\")\n",
+        "cpp": "#include <cstddef>\n#include <cstdint>\n#include <iostream>\n#include <optional>\n#include <stdexcept>\n#include <string>\n#include <vector>\n\nstd::optional<int64_t> parse_int(const std::string& texte) {\n    const auto debut = texte.find_first_not_of(\" \\t\\n\\r\");\n    if (debut == std::string::npos) return std::nullopt;\n    const auto fin = texte.find_last_not_of(\" \\t\\n\\r\");\n    const std::string s = texte.substr(debut, fin - debut + 1);\n    try {\n        std::size_t pos = 0;\n        const long long v = std::stoll(s, &pos);\n        if (pos != s.size()) return std::nullopt;  // stoll(\"12abc\") renvoie 12 sans erreur !\n        return static_cast<int64_t>(v);\n    } catch (const std::invalid_argument&) {\n        return std::nullopt;\n    } catch (const std::out_of_range&) {           // Python accepte les grands entiers, pas int64_t\n        return std::nullopt;\n    }\n}\n\nint main() {\n    for (const std::string t : {\"42\", \" -7 \", \"12abc\", \"\", \"3.5\", \"+8\"}) {\n        const auto v = parse_int(t);\n        std::cout << '[' << t << \"] -> \";\n        if (v) std::cout << *v; else std::cout << \"None\";\n        std::cout << '\\n';\n    }\n}\n",
+        "points_attention": [
+          "std::stoll accepte un préfixe valide (\"12abc\" -> 12, \"3.5\" -> 3) : vérifier avec pos que toute la chaîne a été lue, sinon le comportement diffère de int().",
+          "Optional[T] / retour None -> std::optional<T> / std::nullopt ; à l'affichage, tester has_value().",
+          "except ValueError correspond à deux exceptions C++ : invalid_argument (format) et out_of_range (dépassement)."
+        ]
+      },
+      {
+        "titre": "@dataclass avec valeur par défaut + tri par clé + formatage de chaîne",
+        "types": {
+          "@dataclass": "struct avec initialiseurs par défaut",
+          "field(default_factory=list)": "std::vector<std::string> competences{}",
+          "list.sort(key=lambda e: e.salaire)": "std::stable_sort avec comparateur lambda",
+          "', '.join(liste)": "boucle avec séparateur (ou std::accumulate)"
+        },
+        "python": "from dataclasses import dataclass, field\n\n@dataclass\nclass Employe:\n    nom: str\n    salaire: float\n    competences: list[str] = field(default_factory=list)\n\n    def resume(self) -> str:\n        return f\"{self.nom} ({self.salaire:.0f} EUR) : {', '.join(self.competences) or 'aucune'}\"\n\nequipe = [Employe(\"Alice\", 4200.0, [\"python\", \"sql\"]), Employe(\"Bob\", 3950.0)]\nequipe.sort(key=lambda e: e.salaire)\nfor e in equipe:\n    print(e.resume())\n",
+        "cpp": "#include <algorithm>\n#include <iomanip>\n#include <iostream>\n#include <sstream>\n#include <string>\n#include <vector>\n\nstruct Employe {\n    std::string nom;\n    double salaire = 0.0;\n    std::vector<std::string> competences{};  // default_factory=list : chaque instance a sa propre liste\n\n    std::string resume() const {\n        std::ostringstream os;\n        os << nom << \" (\" << std::fixed << std::setprecision(0) << salaire << \" EUR) : \";\n        if (competences.empty()) {\n            os << \"aucune\";\n        } else {\n            for (std::size_t i = 0; i < competences.size(); ++i) os << (i ? \", \" : \"\") << competences[i];\n        }\n        return os.str();\n    }\n};\n\nint main() {\n    std::vector<Employe> equipe = {{\"Alice\", 4200.0, {\"python\", \"sql\"}}, {\"Bob\", 3950.0}};\n    std::stable_sort(equipe.begin(), equipe.end(),\n                     [](const Employe& a, const Employe& b) { return a.salaire < b.salaire; });\n    for (const auto& e : equipe) std::cout << e.resume() << '\\n';\n}\n",
+        "points_attention": [
+          "Une @dataclass devient une struct (agrégat) : l'initialisation par accolades suit l'ordre des champs, comme le constructeur généré.",
+          "key=lambda x: x.attr devient un comparateur (a, b) -> bool ; list.sort est stable, donc std::stable_sort.",
+          "Les méthodes qui ne modifient pas l'objet sont marquées const.",
+          "'sep'.join(...) n'existe pas en C++17 : boucle avec séparateur conditionnel ; l'expression `x or 'défaut'` devient un test empty()."
+        ]
+      }
+    ]
+  }
+}

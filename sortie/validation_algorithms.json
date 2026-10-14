@@ -1,0 +1,43 @@
+{
+  "module": "algorithms",
+  "fonctions_cpp": [
+    "is_prime",
+    "pgcd",
+    "factorial",
+    "fibonacci",
+    "is_palindrome",
+    "main"
+  ],
+  "fonctions_restees_python": [],
+  "compilation": "ok",
+  "tests": {
+    "fichier": "test_algorithms.py",
+    "total": 5,
+    "reussis": 5,
+    "echecs": []
+  },
+  "sortie_console": {
+    "identique": true,
+    "lignes": 6,
+    "differences": [],
+    "sortie_python": [
+      "--- Exécution des algorithmes ---",
+      "Est-ce que 17 est premier ? True",
+      "Le PGCD de 48 et 18 est : 6",
+      "La factorielle de 5 est : 120",
+      "Le 7ème nombre de Fibonacci est : 13",
+      "'Élu par cette crapule' est un palindrome ? True"
+    ],
+    "sortie_cpp": [
+      "--- Exécution des algorithmes ---",
+      "Est-ce que 17 est premier ? True",
+      "Le PGCD de 48 et 18 est : 6",
+      "La factorielle de 5 est : 120",
+      "Le 7ème nombre de Fibonacci est : 13",
+      "'Élu par cette crapule' est un palindrome ? True"
+    ],
+    "erreurs_python": [],
+    "erreurs_cpp": []
+  },
+  "verdict": "validé"
+}

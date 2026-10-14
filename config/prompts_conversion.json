@@ -1,0 +1,85 @@
+{
+  "modele": "qwen3.6:35b-a3b",
+  "version_prompt": "conversion-v1",
+  "max_reparations": 2,
+  "num_ctx": 16384,
+
+  "statut_filtre": {
+    "Faible": "à convertir",
+    "Moyen": "avec revue",
+    "Élevé": "bloquante"
+  },
+
+  "noms_reserves_cpp": ["main", "new", "delete", "class", "template", "default", "this", "union", "auto", "register"],
+
+  "types_scalaires": ["int64_t", "int32_t", "double", "float", "long double", "bool"],
+
+  "entetes_communs": ["cstdint", "string", "vector", "unordered_map", "map", "unordered_set", "optional", "variant", "tuple", "functional", "stdexcept"],
+
+  "pieges": {
+    "FloorDiv": "division entière // : arrondi vers -inf en Python, vers 0 en C++ -> pysupport::floor_div",
+    "Mod": "modulo % : signe du diviseur en Python, du dividende en C++ -> pysupport::floor_mod",
+    "Pow": "puissance ** : entiers -> pysupport::ipow ; x ** 0.5 est un flottant",
+    "Div": "division / : toujours un flottant en Python 3 -> convertir en double",
+    "Raise": "exception Python -> exception C++ équivalente (ValueError -> std::invalid_argument)"
+  },
+
+  "interdits": {
+    "\\busing\\s+namespace\\b": "using namespace interdit",
+    "\\bint\\s+main\\s*\\(": "main() interdit",
+    "#\\s*define\\b": "#define interdit",
+    "\\bnew\\s+\\w|\\bdelete\\b|\\bmalloc\\s*\\(": "allocation manuelle interdite (new/delete/malloc)",
+    "\\bgoto\\b": "goto interdit",
+    "\\bsystem\\s*\\(": "system() interdit",
+    "bits/stdc\\+\\+\\.h": "en-tête non standard interdit"
+  },
+
+  "rulebook": [
+    "Tu convertis UNE fonction Python en C++17 (g++ -std=c++17). Conventions communes à tout le projet :",
+    "- Implémente EXACTEMENT la signature imposée : même nom, mêmes types, même ordre, mêmes const/&.",
+    "- Types : int -> int64_t, float -> double, str -> std::string, list -> std::vector, dict -> std::unordered_map.",
+    "- Préserve la sémantique Python. La librairie pysupport est déjà incluse :",
+    "    pysupport::floor_div(a, b), pysupport::floor_mod(a, b)   -> // et % entiers de Python",
+    "    pysupport::checked_add / checked_mul                     -> + et * qui lèvent std::overflow_error",
+    "    pysupport::ipow(base, exp), pysupport::isqrt(n)          -> ** entier, int(n ** 0.5)",
+    "    pysupport::round_py(x), pysupport::round_py(x, n)        -> round() de Python",
+    "    pysupport::strip / lower / upper / replace / reversed / split / join",
+    "    pysupport::py_str(x)                                     -> str(x) : True/False, 3.0, variant",
+    "- Exceptions : ValueError -> std::invalid_argument, ZeroDivisionError -> std::domain_error, KeyError/IndexError -> std::out_of_range.",
+    "- print -> std::cout avec '\\n' ; un bool s'affiche True/False (pysupport::py_str).",
+    "- Les dépendances listées sont déjà déclarées : appelle-les directement.",
+    "- Interdits : using namespace, main(), autre fonction globale (utilise des lambdas), #define, new/delete, goto, system().",
+    "- N'invente pas de comportement absent du code Python."
+  ],
+
+  "prompt_fonction": [
+    "=== FICHE DE LA FONCTION ===",
+    "{fiche}",
+    "",
+    "=== CODE PYTHON ===",
+    "```python",
+    "{code}",
+    "```",
+    "",
+    "=== SIGNATURE C++ À IMPLÉMENTER (ne pas la modifier) ===",
+    "{signature}",
+    "",
+    "=== DÉPENDANCES DÉJÀ CONVERTIES (déjà déclarées) ===",
+    "{dependances}",
+    "",
+    "=== EXEMPLES DE CONVERSION RÉUSSIE ===",
+    "{exemples}",
+    "",
+    "=== FORMAT DE SORTIE ===",
+    "Réponds avec exactement deux parties :",
+    "1. Un seul bloc ```cpp contenant les #include standard nécessaires puis la définition de la fonction.",
+    "2. Une ligne \"HYPOTHÈSES:\" suivie d'une hypothèse par ligne commençant par \"- \" (ex. \"- je suppose que n tient dans un int64_t\")."
+  ],
+
+  "prompt_reparation": [
+    "Le code ne passe pas les vérifications :",
+    "{erreurs}",
+    "",
+    "Corrige-le en gardant exactement la signature « {signature} ». Même format de sortie (bloc ```cpp puis HYPOTHÈSES:)."
+  ]
+}

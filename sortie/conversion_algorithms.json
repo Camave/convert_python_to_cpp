@@ -1,0 +1,86 @@
+{
+  "module": "algorithms",
+  "modele": "qwen3.6:35b-a3b",
+  "version_prompt": "conversion-v1",
+  "categorisation_utilisee": {
+    "source": "LLM",
+    "categories_techniques": [
+      "Calcul / Algorithmique"
+    ]
+  },
+  "totaux": {
+    "converti": 6,
+    "échec de compilation": 0,
+    "sauté": 0
+  },
+  "fonctions": [
+    {
+      "fonction": "is_prime",
+      "statut": "converti",
+      "raison": null,
+      "tentatives": 1,
+      "hypotheses": [
+        "je suppose que n tient dans un int64_t et que sa racine carrée tient dans un double sans perte de précision critique pour la comparaison d'égalité avec 0.",
+        "je suppose que les entrées négatives ou nulles sont gérées par le premier `if` (retour false), donc la boucle ne s'exécute que pour n >= 2.",
+        "j'utilise `std::sqrt` sur un double converti depuis int64_t, puis je tronque vers zéro avec `static_cast<int64_t>`, ce qui correspond à `int()` en Python (troncature vers zéro) appliqué au résultat de `n**0.5`. Note: pour les grands entiers parfaits carrés, la précision double peut parfois être limite, mais pour des int64_t standards, c'est généralement acceptable sauf cas très proches de limites de mantisse. Une alternative plus robuste serait `pysupport::isqrt` si disponible et strictement équivalent à `int(n**0.5)` pour les grands nombres, mais ici `std::sqrt` est standard. Pour être parfaitement conforme à \"n'invente pas\", je reste sur la conversion directe de la racine flottante comme le fait Python nativement.",
+        "j'utilise l'opérateur `%` de C++ directement car `i` est positif (>=2) et `n` est positif (>=2 dans la boucle), donc le signe du résultat est celui du dividende (`n`), ce qui correspond au comportement Python pour des diviseurs positifs."
+      ]
+    },
+    {
+      "fonction": "pgcd",
+      "statut": "converti",
+      "raison": null,
+      "tentatives": 1,
+      "hypotheses": [
+        "je suppose que les entrées `a` et `b` sont des entiers signés valides pour un `int64_t`.",
+        "je suppose que le résultat du PGCD tient dans un `int64_t` (ce qui est vrai si les entrées tiennent dans `int64_t`, car le PGCD ne peut pas dépasser la valeur absolue des entrées).",
+        "j'utilise `pysupport::floor_mod` pour garantir que le reste de la division a le même signe que le diviseur (`b`) comme en Python, assurant la convergence correcte de l'algorithme d'Euclide avec des nombres négatifs."
+      ]
+    },
+    {
+      "fonction": "factorial",
+      "statut": "converti",
+      "raison": null,
+      "tentatives": 1,
+      "hypotheses": [
+        "je suppose que le résultat de la factorielle tient dans un int64_t (sinon overflow silencieux ou besoin d'arithmétique big-int).",
+        "je suppose que l'entrée n est suffisamment petite pour que la boucle soit efficace en temps.",
+        "je respecte la sémantique Python où factorial(0) et factorial(1) valent 1.",
+        "j'utilise std::invalid_argument pour ValueError comme spécifié dans les conventions."
+      ]
+    },
+    {
+      "fonction": "fibonacci",
+      "statut": "converti",
+      "raison": null,
+      "tentatives": 1,
+      "hypotheses": [
+        "je suppose que le résultat tient dans un int64_t (sinon overflow possible pour n >= 93)",
+        "je suppose que l'entrée n est cohérente avec la sémantique Python (entier non négatif)"
+      ]
+    },
+    {
+      "fonction": "is_palindrome",
+      "statut": "converti",
+      "raison": null,
+      "tentatives": 2,
+      "hypotheses": [
+        "La fonction `pysupport::lower` convertit la chaîne en minuscules.",
+        "La fonction `pysupport::replace(str, old, new)` remplace toutes les occurrences de `old` par `new`.",
+        "`std::to_string` produit le format standard pour les entiers (pas de séparateurs de milliers).",
+        "La comparaison `==` sur `std::string` effectue une comparaison lexicographique stricte."
+      ]
+    },
+    {
+      "fonction": "main",
+      "statut": "converti",
+      "raison": null,
+      "tentatives": 1,
+      "hypotheses": [
+        "je suppose que les fonctions `is_prime`, `pgcd`, `factorial`, `fibonacci` et `is_palindrome` sont déjà implémentées et disponibles dans la portée ou le namespace courant.",
+        "je suppose que `is_palindrome` gère correctement la casse et les espaces si nécessaire (la signature prend un variant string, donc on passe la string brute).",
+        "je suppose que l'affichage de `bool` doit suivre la convention Python (`True`/`False`) comme indiqué dans les conventions générales."
+      ]
+    }
+  ]
+}

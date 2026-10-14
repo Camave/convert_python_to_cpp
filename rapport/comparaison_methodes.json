@@ -1,0 +1,771 @@
+{
+  "synthese": {
+    "nb_scripts": 12,
+    "modele_llm": "qwen3.5:9b",
+    "metier_accord": 0.25,
+    "technique_jaccard_moyen": 0.45,
+    "technique_principale_identique": 0.33,
+    "complexite_accord": 0.5,
+    "complexite_llm_plus_haute": 0,
+    "complexite_llm_plus_basse": 6,
+    "temps_moyen_s": {
+      "regles": 0.0461,
+      "llm": 7.8
+    }
+  },
+  "scripts": [
+    {
+      "script": "categorisation_llm.py",
+      "lignes_code": 95,
+      "imports": [
+        "json",
+        "sys",
+        "pathlib",
+        "typing",
+        "ollama",
+        "pydantic",
+        "read_extract"
+      ],
+      "metier": {
+        "regles": "Ventes / Marketing",
+        "indices_regles": [
+          "vente (x1)",
+          "client (x4)",
+          "produit (x2)"
+        ],
+        "llm": "Outil technique générique",
+        "indices_llm": [
+          "import ollama",
+          "client = Client(host=\"http://100.114.26.31:11434\")",
+          "CATEGORIES_TECHNIQUES = Literal[\"Nettoyage de données\", \"Transformation de données\", ...]",
+          "CATEGORIES_METIER = Literal[\"Finance\", \"Ressources humaines\", ...]"
+        ],
+        "confiance_llm": 0.95,
+        "accord": false
+      },
+      "technique": {
+        "regles": [
+          "Transformation de données",
+          "Calcul / Algorithmique"
+        ],
+        "raisons_regles": {
+          "Transformation de données": [
+            "appel join()"
+          ],
+          "Calcul / Algorithmique": [
+            "7 opérations arithmétiques"
+          ]
+        },
+        "llm": [
+          "Utilitaire",
+          "Modélisation / ML"
+        ],
+        "principale_identique": false,
+        "jaccard": 0.0
+      },
+      "complexite": {
+        "regles": "modéré",
+        "score_regles": 20,
+        "llm": "simple",
+        "justification_llm": "La logique est linéaire : chargement de config, construction du prompt, appel API, sauvegarde et sortie JSON. Aucune boucle complexe ni gestion d'erreur avancée au-delà de la vérification du contexte.",
+        "ecart": -1
+      },
+      "description_llm": {
+        "lu": "Le fichier Python passé en argument de ligne de commande (ou 'data/algorithms.py' par défaut) et les fichiers de configuration JSON",
+        "fait": "Exécute une requête LLM via Ollama pour catégoriser le script analysé, puis sauvegarde la conversation dans un fichier JSON",
+        "produit": "Un objet JSON contenant la description fonctionnelle, la catégorie technique et métier, ainsi que le niveau de complexité du script cible"
+      },
+      "temps_s": {
+        "regles": 0.0386,
+        "llm": 12.9
+      }
+    },
+    {
+      "script": "categorisation_regles.py",
+      "lignes_code": 67,
+      "imports": [
+        "ast",
+        "json",
+        "re",
+        "unicodedata",
+        "pathlib"
+      ],
+      "metier": {
+        "regles": "Ressources humaines",
+        "indices_regles": [
+          "salaire (x4)",
+          "rh (x1)"
+        ],
+        "llm": "Outil technique générique",
+        "indices_llm": [
+          "mots_cles_metier",
+          "categorie_technique_par_defaut"
+        ],
+        "confiance_llm": 0.3,
+        "accord": false
+      },
+      "technique": {
+        "regles": [
+          "Utilitaire",
+          "Calcul / Algorithmique"
+        ],
+        "raisons_regles": {
+          "Utilitaire": [
+            "appel lower()",
+            "appel startswith()"
+          ],
+          "Calcul / Algorithmique": [
+            "10 opérations arithmétiques"
+          ]
+        },
+        "llm": [
+          "Calcul / Algorithmique",
+          "Utilitaire"
+        ],
+        "principale_identique": false,
+        "jaccard": 1.0
+      },
+      "complexite": {
+        "regles": "modéré",
+        "score_regles": 25,
+        "llm": "modéré",
+        "justification_llm": "Le script contient plusieurs fonctions imbriquées, des boucles pour parcourir les imports et les mots-clés, ainsi qu'une logique de calcul de score combinant plusieurs facteurs (branches, imbrication, taille, dépendances). La structure est claire mais implique une analyse statique non triviale.",
+        "ecart": 0
+      },
+      "description_llm": {
+        "lu": "Le fichier config/regles_categorisation.json (règles de catégorisation)",
+        "fait": "Analyse le code source pour extraire les imports, les appels de fonctions et le nombre d'opérations arithmétiques afin de déterminer la catégorie technique ; normalise le texte du code pour compter des mots-clés métier et attribuer une catégorie métier ; calcule un score de complexité basé sur l'architecture, la taille et les dépendances",
+        "produit": "Un objet JSON contenant la catégorie technique, la catégorie métier et le niveau de complexité avec leurs justifications"
+      },
+      "temps_s": {
+        "regles": 0.029,
+        "llm": 7.6
+      }
+    },
+    {
+      "script": "comparer_methodes.py",
+      "lignes_code": 73,
+      "imports": [
+        "json",
+        "sys",
+        "time",
+        "pathlib",
+        "read_extract",
+        "categorisation_llm",
+        "categorisation_regles"
+      ],
+      "metier": {
+        "regles": "Outil technique générique",
+        "indices_regles": [],
+        "llm": "Outil technique générique",
+        "indices_llm": [
+          "comparer_script",
+          "categoriser_regles",
+          "categoriser_llm",
+          "rapport/comparaison_methodes.json"
+        ],
+        "confiance_llm": 0.9,
+        "accord": true
+      },
+      "technique": {
+        "regles": [
+          "Utilitaire",
+          "Calcul / Algorithmique"
+        ],
+        "raisons_regles": {
+          "Utilitaire": [
+            "appel startswith()"
+          ],
+          "Calcul / Algorithmique": [
+            "13 opérations arithmétiques"
+          ]
+        },
+        "llm": [
+          "Utilitaire"
+        ],
+        "principale_identique": true,
+        "jaccard": 0.5
+      },
+      "complexite": {
+        "regles": "modéré",
+        "score_regles": 19,
+        "llm": "modéré",
+        "justification_llm": "Le script contient une boucle principale sur les arguments ou le système de fichiers, des appels à des fonctions externes complexes (categorisation), et un calcul de métriques statistiques (Jaccard, taux d'accord). La logique est structurée mais dépend de modules externes non fournis ici.",
+        "ecart": 0
+      },
+      "description_llm": {
+        "lu": "Les scripts Python passés en argument de ligne de commande ou tous les fichiers .py du projet par défaut",
+        "fait": "Exécute chaque script cible pour obtenir son profil, applique deux méthodes de catégorisation (règles et LLM), puis agrège les résultats dans un rapport JSON avec une synthèse statistique",
+        "produit": "Un fichier JSON contenant le rapport détaillé par script et une synthèse globale des performances et accords entre les méthodes"
+      },
+      "temps_s": {
+        "regles": 0.0403,
+        "llm": 7.2
+      }
+    },
+    {
+      "script": "conversion.py",
+      "lignes_code": 235,
+      "imports": [
+        "ast",
+        "json",
+        "re",
+        "shutil",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "pathlib",
+        "categorisation_llm",
+        "read_extract"
+      ],
+      "metier": {
+        "regles": "Risque / Conformité",
+        "indices_regles": [
+          "risque (x7)"
+        ],
+        "llm": "Outil technique générique",
+        "indices_llm": [
+          "conversion Python -> C++17",
+          "pysupport.hpp",
+          "g++",
+          "pybind11"
+        ],
+        "confiance_llm": 0.95,
+        "accord": false
+      },
+      "technique": {
+        "regles": [
+          "Transformation de données",
+          "Utilitaire",
+          "Calcul / Algorithmique"
+        ],
+        "raisons_regles": {
+          "Transformation de données": [
+            "appel join()"
+          ],
+          "Utilitaire": [
+            "appel startswith()",
+            "appel strip()"
+          ],
+          "Calcul / Algorithmique": [
+            "23 opérations arithmétiques"
+          ]
+        },
+        "llm": [
+          "Transformation de données",
+          "Utilitaire"
+        ],
+        "principale_identique": true,
+        "jaccard": 0.67
+      },
+      "complexite": {
+        "regles": "complexe",
+        "score_regles": 57,
+        "llm": "modéré",
+        "justification_llm": "La logique est modérée : elle combine une analyse statique (AST), un tri topologique pour gérer les dépendances, et une boucle de réparation avec LLM. La complexité vient de la gestion des récursions mutuelles et du traitement itératif des erreurs de compilation.",
+        "ecart": -1
+      },
+      "description_llm": {
+        "lu": "Le fichier source Python (argument CLI), les configurations JSON (prompts, types, exemples) et la librairie de support C++.",
+        "fait": "Filtre les fonctions convertibles, ordonne leur traitement par dépendances récursives, génère des signatures C++, sollicite un LLM pour la conversion fonction par fonction, vérifie la syntaxe via g++ et répare les erreurs itérativement.",
+        "produit": "Des fichiers source C++ (.hpp, .cpp), des bindings pybind11, des rapports JSON de conversion et des prompts enregistrés."
+      },
+      "temps_s": {
+        "regles": 0.1044,
+        "llm": 9.3
+      }
+    },
+    {
+      "script": "data\\algorithms.py",
+      "lignes_code": 48,
+      "imports": [],
+      "metier": {
+        "regles": "Outil technique générique",
+        "indices_regles": [],
+        "llm": "Outil technique générique",
+        "indices_llm": [
+          "is_prime",
+          "pgcd",
+          "factorial",
+          "fibonacci",
+          "is_palindrome"
+        ],
+        "confiance_llm": 0.95,
+        "accord": true
+      },
+      "technique": {
+        "regles": [
+          "Utilitaire",
+          "Calcul / Algorithmique"
+        ],
+        "raisons_regles": {
+          "Utilitaire": [
+            "appel lower()"
+          ],
+          "Calcul / Algorithmique": [
+            "7 opérations arithmétiques"
+          ]
+        },
+        "llm": [
+          "Calcul / Algorithmique"
+        ],
+        "principale_identique": false,
+        "jaccard": 0.5
+      },
+      "complexite": {
+        "regles": "modéré",
+        "score_regles": 13,
+        "llm": "simple",
+        "justification_llm": "Le code est composé de fonctions indépendantes avec une logique linéaire ou itérative simple (boucles for/while basiques). Il n'y a pas de gestion d'erreurs complexe, de dépendances externes ni de logique conditionnelle imbriquée profonde.",
+        "ecart": -1
+      },
+      "description_llm": {
+        "lu": "Aucune entrée externe : valeurs codées en dur dans le script",
+        "fait": "Calcule des propriétés mathématiques (nombre premier, PGCD, factorielle, suite de Fibonacci) et vérifie la propriété palindrome sur une chaîne de caractères spécifique",
+        "produit": "Des messages d'affichage console via print() montrant les résultats des calculs"
+      },
+      "temps_s": {
+        "regles": 0.0136,
+        "llm": 6.2
+      }
+    },
+    {
+      "script": "data\\outils_pipeline\\outils_pipeline.py",
+      "lignes_code": 97,
+      "imports": [
+        "re"
+      ],
+      "metier": {
+        "regles": "Risque / Conformité",
+        "indices_regles": [
+          "risque (x6)"
+        ],
+        "llm": "Outil technique générique",
+        "indices_llm": [
+          "decouper",
+          "parser_signature",
+          "score_risque",
+          "niveau_complexite",
+          "compacter",
+          "nom_cpp"
+        ],
+        "confiance_llm": 0.95,
+        "accord": false
+      },
+      "technique": {
+        "regles": [
+          "Transformation de données",
+          "Utilitaire",
+          "Calcul / Algorithmique"
+        ],
+        "raisons_regles": {
+          "Transformation de données": [
+            "appel join()"
+          ],
+          "Utilitaire": [
+            "appel lstrip()",
+            "appel partition()",
+            "appel removeprefix()",
+            "appel strip()"
+          ],
+          "Calcul / Algorithmique": [
+            "13 opérations arithmétiques"
+          ]
+        },
+        "llm": [
+          "Utilitaire"
+        ],
+        "principale_identique": false,
+        "jaccard": 0.33
+      },
+      "complexite": {
+        "regles": "modéré",
+        "score_regles": 27,
+        "llm": "simple",
+        "justification_llm": "Le code est composé de fonctions courtes avec une logique linéaire (boucles simples, conditions basiques) et aucune imbrication profonde.",
+        "ecart": -1
+      },
+      "description_llm": {
+        "lu": "Aucune entrée externe : valeurs codées en dur dans le script",
+        "fait": "Découpe des signatures de fonction, extrait les types, calcule un score de risque et une complexité, normalise les noms pour C++",
+        "produit": "Des affichages console (print) montrant les résultats des transformations sur des exemples en dur"
+      },
+      "temps_s": {
+        "regles": 0.0338,
+        "llm": 6.0
+      }
+    },
+    {
+      "script": "data\\outils_pipeline\\test_outils_pipeline.py",
+      "lignes_code": 57,
+      "imports": [
+        "pytest",
+        "outils_pipeline"
+      ],
+      "metier": {
+        "regles": "Risque / Conformité",
+        "indices_regles": [
+          "risque (x3)"
+        ],
+        "llm": "Ressources humaines",
+        "indices_llm": [
+          "niveau_complexite",
+          "score_risque",
+          "compacter",
+          "decouper"
+        ],
+        "confiance_llm": 0.3,
+        "accord": false
+      },
+      "technique": {
+        "regles": [
+          "Tests",
+          "Utilitaire"
+        ],
+        "raisons_regles": {
+          "Tests": [
+            "import pytest"
+          ],
+          "Utilitaire": [
+            "appel startswith()"
+          ]
+        },
+        "llm": [
+          "Tests"
+        ],
+        "principale_identique": true,
+        "jaccard": 0.5
+      },
+      "complexite": {
+        "regles": "simple",
+        "score_regles": 6,
+        "llm": "simple",
+        "justification_llm": "Le code se compose uniquement de fonctions de test simples avec des assertions directes, sans logique métier complexe ni imbrication.",
+        "ecart": 0
+      },
+      "description_llm": {
+        "lu": "Les cas de test paramétrés (valeurs codées en dur dans les listes)",
+        "fait": "Exécute des assertions pour valider le comportement des fonctions du module outils_pipeline (découpage, parsing de signatures, évaluation de risque, etc.)",
+        "produit": "Des résultats d'exécution retournés par pytest lors de la phase de test"
+      },
+      "temps_s": {
+        "regles": 0.0226,
+        "llm": 4.8
+      }
+    },
+    {
+      "script": "data\\test_algorithms.py",
+      "lignes_code": 30,
+      "imports": [
+        "pytest",
+        "algorithms"
+      ],
+      "metier": {
+        "regles": "Outil technique générique",
+        "indices_regles": [],
+        "llm": "Ressources humaines",
+        "indices_llm": [
+          "is_prime",
+          "pgcd",
+          "factorial",
+          "fibonacci",
+          "is_palindrome"
+        ],
+        "confiance_llm": 0.1,
+        "accord": false
+      },
+      "technique": {
+        "regles": [
+          "Tests"
+        ],
+        "raisons_regles": {
+          "Tests": [
+            "import pytest"
+          ]
+        },
+        "llm": [
+          "Tests",
+          "Utilitaire"
+        ],
+        "principale_identique": true,
+        "jaccard": 0.5
+      },
+      "complexite": {
+        "regles": "simple",
+        "score_regles": 5,
+        "llm": "simple",
+        "justification_llm": "Le code est une suite linéaire de fonctions de test sans logique métier complexe, boucles imbriquées ou structures de données dynamiques.",
+        "ecart": 0
+      },
+      "description_llm": {
+        "lu": "Aucune entrée externe : valeurs codées en dur dans le script",
+        "fait": "Exécute des assertions pour valider les fonctions mathématiques (nombre premier, PGCD, factorielle, Fibonacci) et de logique (palindrome)",
+        "produit": "Un rapport d'exécution contenant des erreurs ou succès de tests unitaires"
+      },
+      "temps_s": {
+        "regles": 0.0075,
+        "llm": 5.3
+      }
+    },
+    {
+      "script": "main.py",
+      "lignes_code": 112,
+      "imports": [
+        "json",
+        "shutil",
+        "sys",
+        "categorisation_llm",
+        "categorisation_regles",
+        "conversion",
+        "read_extract",
+        "validation"
+      ],
+      "metier": {
+        "regles": "Ventes / Marketing",
+        "indices_regles": [
+          "produit (x4)"
+        ],
+        "llm": "Supply chain",
+        "indices_llm": [
+          "conversion",
+          "validation",
+          "categorisation"
+        ],
+        "confiance_llm": 0.45,
+        "accord": false
+      },
+      "technique": {
+        "regles": [
+          "Transformation de données",
+          "Utilitaire"
+        ],
+        "raisons_regles": {
+          "Transformation de données": [
+            "appel join()"
+          ],
+          "Utilitaire": [
+            "appel upper()"
+          ]
+        },
+        "llm": [
+          "Modélisation / ML",
+          "Transformation de données"
+        ],
+        "principale_identique": false,
+        "jaccard": 0.33
+      },
+      "complexite": {
+        "regles": "complexe",
+        "score_regles": 30,
+        "llm": "modéré",
+        "justification_llm": "Le script suit un pipeline séquentiel clair (extraction -> catégorisation -> conversion -> validation) avec des étapes distinctes, mais implique l'intégration de plusieurs modules externes et la gestion d'états intermédiaires.",
+        "ecart": -1
+      },
+      "description_llm": {
+        "lu": "Le chemin du script Python à analyser (fourni en argument CLI ou par défaut)",
+        "fait": "Extrait le profil du code source, catégorise les fonctions via règles et LLM, convertit le code en C++, puis valide la compilation et l'équivalence des sorties",
+        "produit": "Des fichiers JSON de métadonnées dans 'sortie/', un rapport de conversion et une validation finale (compilation/tests)"
+      },
+      "temps_s": {
+        "regles": 0.0626,
+        "llm": 6.9
+      }
+    },
+    {
+      "script": "read_extract.py",
+      "lignes_code": 329,
+      "imports": [
+        "ast",
+        "json",
+        "os",
+        "re",
+        "subprocess",
+        "sqlite3",
+        "sys",
+        "pathlib"
+      ],
+      "metier": {
+        "regles": "Risque / Conformité",
+        "indices_regles": [
+          "risque (x12)"
+        ],
+        "llm": "Outil technique générique",
+        "indices_llm": [
+          "Analyse statique AST",
+          "MonkeyType",
+          "Pyright",
+          "Conversion C++"
+        ],
+        "confiance_llm": 0.95,
+        "accord": false
+      },
+      "technique": {
+        "regles": [
+          "Entrées-sorties / Intégration",
+          "Transformation de données",
+          "Utilitaire",
+          "Calcul / Algorithmique"
+        ],
+        "raisons_regles": {
+          "Entrées-sorties / Intégration": [
+            "import sqlite3",
+            "appel connect()"
+          ],
+          "Transformation de données": [
+            "appel join()"
+          ],
+          "Utilitaire": [
+            "appel lstrip()",
+            "appel partition()",
+            "appel removeprefix()",
+            "appel startswith()",
+            "appel strip()"
+          ],
+          "Calcul / Algorithmique": [
+            "9 opérations arithmétiques"
+          ]
+        },
+        "llm": [
+          "Utilitaire",
+          "Modélisation / ML"
+        ],
+        "principale_identique": false,
+        "jaccard": 0.2
+      },
+      "complexite": {
+        "regles": "complexe",
+        "score_regles": 100,
+        "llm": "complexe",
+        "justification_llm": "Le script implémente un visiteur AST personnalisé (`Extracteur`) avec de nombreuses méthodes `visit_` pour chaque type de nœud, gère l'exécution d'outils externes (MonkeyType, Pyright) et fusionne plusieurs sources de types (annotations, traces d'exécution, inférence statique) dans une logique hiérarchisée.",
+        "ecart": 0
+      },
+      "description_llm": {
+        "lu": "Le fichier Python passé en argument (ex: data/algorithms.py)",
+        "fait": "Analyse statique du code source pour extraire la structure AST, détecte les mutations de variables, enrichit les types via MonkeyType et Pyright, et calcule un score de risque de conversion C++",
+        "produit": "Un profil JSON complet contenant l'identité du fichier, la liste des fonctions avec leurs signatures enrichies, les dépendances et les alertes dynamiques"
+      },
+      "temps_s": {
+        "regles": 0.1302,
+        "llm": 9.1
+      }
+    },
+    {
+      "script": "test_ast.py",
+      "lignes_code": 49,
+      "imports": [
+        "ast",
+        "pathlib"
+      ],
+      "metier": {
+        "regles": "Supply chain",
+        "indices_regles": [
+          "stock (x1)"
+        ],
+        "llm": "Outil technique générique",
+        "indices_llm": [
+          "Importation du module `ast`",
+          "Classe `Extracteur` héritant de `ast.NodeVisitor`",
+          "Fonction `analyser_fichier` retournant un dictionnaire de stats"
+        ],
+        "confiance_llm": 0.9,
+        "accord": false
+      },
+      "technique": {
+        "regles": [
+          "Transformation de données",
+          "Utilitaire"
+        ],
+        "raisons_regles": {
+          "Transformation de données": [
+            "appel join()"
+          ],
+          "Utilitaire": [
+            "appel startswith()",
+            "appel strip()"
+          ]
+        },
+        "llm": [
+          "Utilitaire",
+          "Reporting / Visualisation"
+        ],
+        "principale_identique": false,
+        "jaccard": 0.33
+      },
+      "complexite": {
+        "regles": "modéré",
+        "score_regles": 15,
+        "llm": "modéré",
+        "justification_llm": "La logique repose sur la visite récursive d'un arbre (NodeVisitor) avec plusieurs méthodes de visite (`visit_Import`, `visit_FunctionDef`, etc.). Bien que chaque méthode soit simple, l'ensemble couvre de nombreux cas syntaxiques et accumule des métriques dans un dictionnaire.",
+        "ecart": 0
+      },
+      "description_llm": {
+        "lu": "Le contenu du fichier Python passé en argument (via le chemin fourni)",
+        "fait": "Parcourt l'arbre syntaxique (AST) pour extraire des métriques structurelles comme les imports, fonctions, boucles et chaînes de caractères",
+        "produit": "Un dictionnaire contenant les statistiques analysées (imports, fonctions, appels, I/O, etc.)"
+      },
+      "temps_s": {
+        "regles": 0.0257,
+        "llm": 10.3
+      }
+    },
+    {
+      "script": "validation.py",
+      "lignes_code": 108,
+      "imports": [
+        "json",
+        "os",
+        "shutil",
+        "subprocess",
+        "sys",
+        "sysconfig",
+        "xml.etree.ElementTree",
+        "pathlib",
+        "pybind11"
+      ],
+      "metier": {
+        "regles": "Outil technique générique",
+        "indices_regles": [],
+        "llm": "Outil technique générique",
+        "indices_llm": [
+          "Compilation C++/Python",
+          "Tests unitaires",
+          "Comparaison de sortie"
+        ],
+        "confiance_llm": 0.95,
+        "accord": true
+      },
+      "technique": {
+        "regles": [
+          "Calcul / Algorithmique"
+        ],
+        "raisons_regles": {
+          "Calcul / Algorithmique": [
+            "16 opérations arithmétiques"
+          ]
+        },
+        "llm": [
+          "Tests",
+          "Calcul / Algorithmique"
+        ],
+        "principale_identique": false,
+        "jaccard": 0.5
+      },
+      "complexite": {
+        "regles": "complexe",
+        "score_regles": 30,
+        "llm": "modéré",
+        "justification_llm": "La logique implique une séquence d'opérations conditionnelles (compilation -> tests -> comparaison) avec des appels à l'extérieur (subprocess), mais la structure reste linéaire et les branches sont gérées de manière standard.",
+        "ecart": -1
+      },
+      "description_llm": {
+        "lu": "Le fichier de rapport JSON généré lors de l'étape précédente (conversion_*.json) et les fichiers sources C++ compilés.",
+        "fait": "Compile le code C++ en module Python, exécute les tests unitaires existants sur la version hybride, puis compare ligne par ligne la sortie console du script Python original avec celle du module C++.",
+        "produit": "Un fichier JSON de rapport (validation_<module>.json) contenant le verdict (validé/échec), les résultats des tests et les différences de sortie détectées."
+      },
+      "temps_s": {
+        "regles": 0.045,
+        "llm": 7.5
+      }
+    }
+  ]
+}
